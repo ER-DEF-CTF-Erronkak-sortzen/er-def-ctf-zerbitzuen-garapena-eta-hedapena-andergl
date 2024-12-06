@@ -1,21 +1,28 @@
 version: '3'
 services:
-#    web:
-#        build:
-#            context: ./web
-#            dockerfile: Dockerfile
-#        ports:
-#            - "9797:80"
-#    ssh:
-#        build:
-#            context: ./ssh
-#            dockerfile: Dockerfile
-#        ports:
-#            - "8822:22"
+    dns:
+        build:
+            context: ./dns
+            dockerfile: Dockerfile
+        ports:
+            - "53:53/udp"
+    web:
+        build:
+            context: ./web
+            dockerfile: Dockerfile
+        ports:
+            - "80:80"
+            - "443:443"
+    ssh:
+        build:
+            context: ./ssh
+            dockerfile: Dockerfile
+        ports:
+            - "23:22"
     ftp:
         build:
             context: ./ftp
             dockerfile: Dockerfile
         ports:
-            - "20:20"
-            - "21:21"
+           - "20:20"
+           - "21:21"

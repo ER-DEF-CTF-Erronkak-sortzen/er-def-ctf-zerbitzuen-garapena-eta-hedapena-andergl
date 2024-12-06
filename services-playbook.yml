@@ -28,6 +28,9 @@
         dest: "{{ services_destination_folder }}{{ item }}"
       loop: "{{ services_to_install.stdout_lines }}"
 
+    - name: Create DNS records
+      shell: IP=$(hostname -I | cut -d' ' -f1) ; echo "www IN A ${IP}" >> services/catchme/dns/db.catch.me ; echo "intranet IN A ${IP}" >> services/catchme/dns/db.catch.me
+
     - name: Make script executable
       shell: chmod +x {{ services_destination_folder }}{{ item }}/run_{{ item }}.sh
       loop: "{{ services_to_install.stdout_lines }}"
@@ -43,9 +46,9 @@
       shell: export SERVICES_PATH={{ services_destination_folder }} && {{ services_destination_folder }}{{ item }}/run_{{ item }}.sh
       loop: "{{ services_to_install.stdout_lines }}"
 
-    - name: Remove services folder
-      file:
-        path: "{{ services_destination_folder }}"
-        state: absent
+#    - name: Remove services folder
+#      file:
+#        path: "{{ services_destination_folder }}"
+#        state: absent
 
   # Add more tasks as needed

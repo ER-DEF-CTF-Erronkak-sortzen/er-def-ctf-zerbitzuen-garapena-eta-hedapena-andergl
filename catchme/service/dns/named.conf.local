@@ -1,0 +1,5 @@
+zone "catch.me" {
+    type master;
+    file "/etc/bind/db.catch.me";
+};
+
