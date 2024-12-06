@@ -1,7 +1,10 @@
 # Service definition:
-- We have two dockers: 
-1. An Ubuntu (latest version) one which contains the flags. 
-2. One who has install apache service. 
+- We have four dockers on a Debian 12 machine: 
+1. An SSH server (OpenSSH, listening on port 23), which contains the two flags. Both are located in users home directories (/home/seeks and /home/heals).
+2. A DNS server (bind9, listening on port 53 UDP), which resolves www.catch.me and intranet.catch.me domain names into the Debian 12 machine's IP address.
+3. An HTTP/HTTPS server (apache2, listening on ports 80 & 443), with two websites: www.catch.me and intranet.catch.me.
+4. An FTP server (vsftpd, listening on port 21 and using port 20 for data transfer), with anonymous access enabled.
+
 The attacker has access to a web page (web_docker) and has to look for information that can help him accessing the other docker.
 The flags are stored in that last docker's file and attacker has to let them in his T-Submission machine. 
 

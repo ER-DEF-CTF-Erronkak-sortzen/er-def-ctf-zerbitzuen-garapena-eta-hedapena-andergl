@@ -2,7 +2,6 @@ FROM httpd:2.4.50
 
 COPY ./conf/httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY ./conf/extra/httpd-vhosts.conf /usr/local/apache2/conf/extra/httpd-vhosts.conf
-#COPY ./conf/extra/httpd-ssl.conf /usr/local/apache2/conf/extra/httpd-ssl.conf
 COPY ./conf/www.catch.me.key /usr/local/apache2/conf/www.catch.me.key
 COPY ./conf/www.catch.me.crt /usr/local/apache2/conf/www.catch.me.crt
 COPY ./conf/intranet.catch.me.key /usr/local/apache2/conf/intranet.catch.me.key

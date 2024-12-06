@@ -2,7 +2,8 @@ FROM debian:latest
 RUN apt update && apt install -y openssh-server
 
 # Create user
-RUN useradd -m dev1 && echo "dev1:w3ar3h4ck3r2" | chpasswd
+RUN useradd -m heals && echo "heals:aIPOLLWn" | chpasswd
+RUN useradd -m seeks && echo "seeks:2661DWdb" | chpasswd
 
 # Configure SSH
 RUN mkdir /var/run/sshd

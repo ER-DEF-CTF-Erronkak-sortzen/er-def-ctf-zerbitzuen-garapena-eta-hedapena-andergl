@@ -6,8 +6,8 @@ import http.client
 import socket
 import paramiko
 import hashlib
-PORT_WEB = 9797
-PORT_SSH = 8822
+PORT_WEB = 80
+PORT_SSH = 23
 def ssh_connect():
     def decorator(func):
         def wrapper(*args, **kwargs):

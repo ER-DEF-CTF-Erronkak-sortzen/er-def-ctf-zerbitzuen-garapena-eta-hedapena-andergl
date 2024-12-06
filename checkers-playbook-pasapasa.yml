@@ -1,0 +1,77 @@
+---
+- name: Deploy services
+  hosts: gameservers
+  # become: true
+
+  vars:
+    checker_py_folder: "/usr/lib/python3/dist-packages/ctf_gameserver/checker/"
+    checker_env_folder: "/etc/ctf-gameserver/checker/"
+
+  tasks:
+    - name: Create checker_py_folder if it doesn't exist
+      file:
+        path: "{{ checker_py_folder }}"
+        state: directory
+        mode: '0755'
+        recurse: yes
+        owner: root
+        group: root
+        setype: s0
+
+    - name: Create checker_env_folder if it doesn't exist
+      file:
+        path: "{{ checker_env_folder }}"
+        state: directory
+        mode: '0755'
+        recurse: yes
+        owner: root
+        group: root
+        setype: s0
+
+    - name: Read services to install
+      command: "cat {{ playbook_dir }}/services2install.txt"
+      register: services_to_install
+      delegate_to: localhost
+
+    - name: Copy checker subfolders
+      copy:
+        src: "{{ item }}/checker/"
+        dest: "{{ checker_py_folder }}{{ item }}"
+      loop: "{{ services_to_install.stdout_lines }}"
+
+    - name: move env file
+      shell: mv {{ checker_py_folder }}{{ item }}/{{ item }}.env {{ checker_env_folder }}
+      loop: "{{ services_to_install.stdout_lines }}"
+
+    - name: Set py files executable
+      shell: chmod +x {{ checker_py_folder }}{{ item }}/*
+      loop: "{{ services_to_install.stdout_lines }}"
+
+    # #- name: Get all lines of apt_requirements.txt files located in service/checker subfolders
+    #   shell: "cat {{ playbook_dir }}/{{ item }}/checker/apt_requirement.txt"
+    #   register: apt_requirements
+    #   loop: "{{ services_to_install.stdout_lines }}"
+    #   delegate_to: localhost
+
+    # - name: Install apt requirements in all checker subfolders
+    #   apt:
+    #     name: "{{ item }}"
+    #     state: present
+    #   loop: "{{ apt_requirements.results }}"
+
+    - name: Enable checker service
+      command: "systemctl enable ctf-checkermaster@{{ item }}"
+      loop: "{{ services_to_install.stdout_lines }}"
+
+    - name: Restart checker service
+      command: "systemctl restart ctf-checkermaster@{{ item }}"
+      loop: "{{ services_to_install.stdout_lines }}"
+
+    - name: create db entries for services
+      become: true
+      become_user: postgres
+      shell: psql -d ctf_gameserver -c "INSERT INTO scoring_service (name, slug) VALUES ('{{ item }}', '{{ item }}');"
+      loop: "{{ services_to_install.stdout_lines }}" 
+      ignore_errors: yes   
+
+  # Add more tasks as needed
