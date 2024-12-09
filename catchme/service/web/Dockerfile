@@ -20,6 +20,6 @@ RUN chmod 755 /usr/local/apache2/htdocs/intranet-old/
 COPY ./intranet-old/index.html /usr/local/apache2/htdocs/intranet-old/index.html
 COPY ./intranet-old/.htaccess /usr/local/apache2/htdocs/intranet-old/.htaccess
 COPY ./intranet-old/.htpasswd /usr/local/apache2/htdocs/intranet-old/.htpasswd
-COPY ./intranet-old/.ftpusers /usr/local/apache2/htdocs/intranet-old/.ftpusers
+COPY ./intranet-old/.ht-ftpusers /usr/local/apache2/htdocs/intranet-old/.ht-ftpusers
 
 #CMD ["httpd-foreground"]

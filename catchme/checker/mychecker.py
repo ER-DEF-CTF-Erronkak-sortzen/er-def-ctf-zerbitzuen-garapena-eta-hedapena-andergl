@@ -14,6 +14,9 @@ import paramiko
 import hashlib
 #PORT_DNS = 53
 PORT_FTP = 21
+FTPUSER = 'seeks'
+FTPPASSWD = '2661DWdb'
+FTPPATH = '/home/seeks/.sshusers'
 PORT_WEB = 80
 URL1 = 'http://www.catch.me'
 WEBSTATE1 = 301
@@ -22,7 +25,13 @@ WEBSTATE2 = 401
 PORT_WEBS = 443
 URLS1 = 'https://www.catch.me'
 URLS2 = 'https://intranet.catch.me'
+WEBCONFPATH1 = '/usr/local/apache2/conf/httpd.conf'
+WEBCONFPATH2 = '/usr/local/apache2/conf/extra/httpd-vhosts.conf'
+WEBPATH = '/usr/local/apache2/htdocs/intranet-old/.ht-ftpusers'
 PORT_SSH = 23
+SSHUSER = 'heals'
+SSHPASSWD = 'aIPOLLWn'
+
 def ssh_connect():
     def decorator(func):
         def wrapper(*args, **kwargs):
@@ -61,40 +70,51 @@ class MyChecker(checkerlib.BaseChecker):
         return checkerlib.CheckResult.OK
 
     def check_service(self):
-        # check if DNS service is working (active and answiring all the requests)
+        # check if DNS service is active and working (answering all the requests):
+          # www.catch.me --> 10.0.x.101
+          # intranet.catch.me --> 10.0.x.101
         if not self._check_dns(self.ip):
             return checkerlib.CheckResult.FAULTY
-        # check if FTP server is working and anonymous user can access
-        if not self._check_ftp(self.ip):
+        
+        # check if FTP server is working, anonymous user can access and seeks user can access
+        if not self._check_ftp(self.ip, FTPUSER, FTPPASSWD):
             return checkerlib.CheckResult.FAULTY
-        #
-        # check if server is Apache 2.4.50
+          # check if .sshusers file on /home/seeks/ of FTP server hasn't been changed using its hash
+        if not self._check_ftp_filehash(FTPPATH):
+            return checkerlib.CheckResult.FAULTY
+        
+        # check that SSH server is listening on port 23 and that user heals can connect
+        if not self._check_ssh(self.ip, PORT_SSH, SSHUSER, SSHPASSWD):
+            return checkerlib.CheckResult.FAULTY
+
+        # check if HTTP/HTTPS server is Apache 2.4.50
         if not self._check_apache_version():
             return checkerlib.CheckResult.FAULTY
+        # check if HTTP/HTTPS server is available and working well
+          # check that http://www.catch.me redirects (301)
         if not self._check_web(self.ip, URL1, PORT_WEB, WEBSTATE1):
             return checkerlib.CheckResult.FAULTY
+          # check that http://intranet.catch.me asks for a login (401)
         if not self._check_web(self.ip, URL2, PORT_WEB, WEBSTATE2):
             return checkerlib.CheckResult.FAULTY
+          # check that https://www.catch.me is available
         if not self._check_websecure(self.ip, URLS1, PORT_WEBS):
             return checkerlib.CheckResult.FAULTY
+          # check that https://intranet.catch.me is available
         if not self._check_websecure(self.ip, URLS2, PORT_WEBS):
             return checkerlib.CheckResult.FAULTY
-        #if not self._check_port_ssh(self.ip, PORT_SSH):
-        #    return checkerlib.CheckResult.FAULTY
-        #else
+          # check if HTTP/HTTPS config files haven't been changed using their hash
+        if not self._check_web_confhash(WEBCONFPATH1):
+            return checkerlib.CheckResult.FAULTY
+        if not self._check_web_extraconfhash(WEBCONFPATH2):
+            return checkerlib.CheckResult.FAULTY
+          # check if .ht-ftpusers file on /usr/local/apache2/htdocs/intranet-old/ hasn't been changed using its hash
+        if not self._check_web_filehash(WEBPATH):
+            return checkerlib.CheckResult.FAULTY
         
-        # check if dev1 user exists in pasapasa_ssh docker
-        #if not self._check_ssh_user('heals'):
-        #    return checkerlib.CheckResult.FAULTY
-        #file_path_web = '/usr/local/apache2/htdocs/index.html'
-        # check if index.hmtl from pasapasa_web has been changed by comparing its hash with the hash of the original file
-        #if not self._check_web_integrity(file_path_web):
-        #    return checkerlib.CheckResult.FAULTY            
-        #file_path_ssh = '/etc/ssh/sshd_config'
-        # check if /etc/sshd_config from pasapasa_ssh has been changed by comparing its hash with the hash of the original file
-        #if not self._check_ssh_integrity(file_path_ssh):
-        #    return checkerlib.CheckResult.FAULTY            
+        # if all the services are OK          
         return checkerlib.CheckResult.OK
+    
     
     def check_flag(self, tick):
         if not self.check_service():
@@ -109,38 +129,39 @@ class MyChecker(checkerlib.BaseChecker):
             return checkerlib.CheckResult.FLAG_NOT_FOUND
         return checkerlib.CheckResult.OK
         
-    @ssh_connect()
-    #Function to check if an user exists
-    def _check_ssh_user(self, username):
-        ssh_session = self.client
-        command = f"docker exec catchme_ssh_1 sh -c 'id {username}'"
-        stdin, stdout, stderr = ssh_session.exec_command(command)
-        if stderr.channel.recv_exit_status() != 0:
-            return False
-        return True
-      
-    @ssh_connect()
-    def _check_web_integrity(self, path):
-        ssh_session = self.client
-        command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
-        stdin, stdout, stderr = ssh_session.exec_command(command)
-        if stderr.channel.recv_exit_status() != 0:
-            return False
-        
-        output = stdout.read().decode().strip()
-        return hashlib.md5(output.encode()).hexdigest() == 'a4ed71eb4f7c89ff868088a62fe33036'
     
-    @ssh_connect()
-    def _check_ssh_integrity(self, path):
-        ssh_session = self.client
-        command = f"docker exec catchme_ssh_1 sh -c 'cat {path}'"
-        stdin, stdout, stderr = ssh_session.exec_command(command)
-        if stderr.channel.recv_exit_status() != 0:
-            return False
-        output = stdout.read().decode().strip()
-        print (hashlib.md5(output.encode()).hexdigest())
-
-        return hashlib.md5(output.encode()).hexdigest() == '39cff490d2bf197588ad0d0f9f24f906'
+    
+    
+    #@ssh_connect()
+    #Function to check if an user exists
+    #def _check_ssh_user(self, username):
+    #    ssh_session = self.client
+    #    command = f"docker exec catchme_ssh_1 sh -c 'id {username}'"
+    #    stdin, stdout, stderr = ssh_session.exec_command(command)
+    #    if stderr.channel.recv_exit_status() != 0:
+    #        return False
+    #    return True
+      
+    #@ssh_connect()
+    #def _check_web_integrity(self, path):
+    #    ssh_session = self.client
+    #    command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
+    #    stdin, stdout, stderr = ssh_session.exec_command(command)
+    #    if stderr.channel.recv_exit_status() != 0:
+    #        return False
+    #    output = stdout.read().decode().strip()
+    #    return hashlib.md5(output.encode()).hexdigest() == 'a4ed71eb4f7c89ff868088a62fe33036'
+    
+    #@ssh_connect()
+    #def _check_ssh_integrity(self, path):
+    #    ssh_session = self.client
+    #    command = f"docker exec catchme_ssh_1 sh -c 'cat {path}'"
+    #    stdin, stdout, stderr = ssh_session.exec_command(command)
+    #    if stderr.channel.recv_exit_status() != 0:
+    #        return False
+    #    output = stdout.read().decode().strip()
+        #print (hashlib.md5(output.encode()).hexdigest())
+    #    return hashlib.md5(output.encode()).hexdigest() == 'e6fd6e8e29210c5678181f33177d5433'
   
     # Private Funcs - Return False if error
     def _add_new_flag(self, ssh_session, flag):
@@ -159,7 +180,6 @@ class MyChecker(checkerlib.BaseChecker):
     def _check_flag_present(self, flag):
         ssh_session = self.client
         command = f"docker exec catchme_ssh_1 sh -c 'grep {flag} /home/heals/flag.txt'"
-        command = f"docker exec catchme_ssh_1 sh -c 'grep {flag} /home/seeks/flag.txt'"
         stdin, stdout, stderr = ssh_session.exec_command(command)
         if stderr.channel.recv_exit_status() != 0:
             return False
@@ -185,18 +205,56 @@ class MyChecker(checkerlib.BaseChecker):
         except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.exception.DNSException) as e:
             return False
 
-    def _check_ftp(self, ip):
+    def _check_ftp(self, ip, ftpuser, ftppasswd):
         try:
             ftpconn = FTP()
             ftpconn.connect(ip, 21)
             ftpconn.login('anonymous','')           
+            ftpconn.quit()
+            ftpconn = FTP()
+            ftpconn.connect(ip, 21)
+            ftpconn.login(ftpuser, ftppasswd)           
             ftpconn.quit()
             return True
         except (error_perm, error_temp, error_reply) as e:
             print(f"Exception: {e}")
             return False
             
+    @ssh_connect()
+    def _check_ftp_filehash(self, path):
+        ssh_session = self.client
+        command = f"docker exec catchme_ftp_1 sh -c 'cat {path}'"
+        stdin, stdout, stderr = ssh_session.exec_command(command)
+        if stderr.channel.recv_exit_status() != 0:
+            return False
+        output = stdout.read().decode().strip()
+        return hashlib.md5(output.encode()).hexdigest() == 'b5e980d39d9236678edd943a7aafcec7'
+
+    def _check_ssh(self, host, port, user, passwd):
+        ssh_client = paramiko.SSHClient()
+        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            ssh_client.connect(host, port, user, passwd)
+            return True
+        except paramiko.AuthenticationException:
+            return False
+        except paramiko.SSHException as e:
+            return False
+        except Exception as e:
+            return False
+        finally:
+            ssh_client.close()
     
+    @ssh_connect()
+    def _check_apache_version(self):
+        ssh_session = self.client
+        command = f"docker exec catchme_web_1 sh -c 'httpd -v | grep \"Apache/2.4.50\'"
+        stdin, stdout, stderr = ssh_session.exec_command(command)
+        if stdout:
+            return True
+        else:
+            return False
+
     def _check_web(self, ip, url, port, state):
         parsed_url = urlparse(url)
         host = parsed_url.hostname
@@ -236,30 +294,49 @@ class MyChecker(checkerlib.BaseChecker):
         except Exception as e:
             return False    
 
-
-    def _check_port_ssh(self, ip, port):
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(5)
-            result = sock.connect_ex((ip, port))
-            return result == 0
-        except socket.error as e:
-            print(f"Exception: {e}")
+    @ssh_connect()
+    def _check_web_filehash(self, path):
+        ssh_session = self.client
+        command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
+        stdin, stdout, stderr = ssh_session.exec_command(command)
+        if stderr.channel.recv_exit_status() != 0:
             return False
-        finally:
-            sock.close()
+        output = stdout.read().decode().strip()
+        return hashlib.md5(output.encode()).hexdigest() == '8d28dab82d38bf9b95e82b7c58de6d31'
 
     @ssh_connect()
-    def _check_apache_version(self):
+    def _check_web_confhash(self, path):
         ssh_session = self.client
-        command = f"docker exec catchme_web_1 sh -c 'httpd -v | grep \"Apache/2.4.50\'"
+        command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
         stdin, stdout, stderr = ssh_session.exec_command(command)
-
-        if stdout:
-            return True
-        else:
+        if stderr.channel.recv_exit_status() != 0:
             return False
-  
+        output = stdout.read().decode().strip()
+        return hashlib.md5(output.encode()).hexdigest() == '8f2c783e646ebbd9d66a2388b254620f'
+    
+    @ssh_connect()
+    def _check_web_extraconfhash(self, path):
+        ssh_session = self.client
+        command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
+        stdin, stdout, stderr = ssh_session.exec_command(command)
+        if stderr.channel.recv_exit_status() != 0:
+            return False
+        output = stdout.read().decode().strip()
+        return hashlib.md5(output.encode()).hexdigest() == '2b41a2fbe194b4ddf857274ecfc46025'
+    
+    #def _check_port_ssh(self, ip, port):
+    #    try:
+    #        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #        sock.settimeout(5)
+    #        result = sock.connect_ex((ip, port))
+    #        return result == 0
+    #    except socket.error as e:
+    #        print(f"Exception: {e}")
+    #        return False
+    #    finally:
+    #        sock.close()
+
+    
 if __name__ == '__main__':
     checkerlib.run_check(MyChecker)
 
