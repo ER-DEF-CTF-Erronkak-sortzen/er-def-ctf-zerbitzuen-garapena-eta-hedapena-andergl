@@ -20,6 +20,7 @@ services:
         ports:
             - "23:22"
     ftp:
+        restart: unless-stopped
         build:
             context: ./ftp
             dockerfile: Dockerfile

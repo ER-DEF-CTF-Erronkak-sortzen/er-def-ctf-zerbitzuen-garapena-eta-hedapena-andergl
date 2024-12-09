@@ -5,10 +5,23 @@ import logging
 import http.client
 import socket
 import ssl
+from urllib.parse import urlparse
+import dns.resolver
+import dns.exception
+from ftplib import FTP
+from ftplib import error_perm, error_temp, error_reply
 import paramiko
 import hashlib
+#PORT_DNS = 53
+PORT_FTP = 21
 PORT_WEB = 80
+URL1 = 'http://www.catch.me'
+WEBSTATE1 = 301
+URL2 = 'http://intranet.catch.me'
+WEBSTATE2 = 401
 PORT_WEBS = 443
+URLS1 = 'https://www.catch.me'
+URLS2 = 'https://intranet.catch.me'
 PORT_SSH = 23
 def ssh_connect():
     def decorator(func):
@@ -48,20 +61,31 @@ class MyChecker(checkerlib.BaseChecker):
         return checkerlib.CheckResult.OK
 
     def check_service(self):
-        # check if ports are open
-        if not self._check_port_web(self.ip, PORT_WEB):
-            return checkerlib.CheckResult.DOWN
-        #if not self._check_port_webs(self.ip, PORT_WEBS):
-        #    return checkerlib.CheckResult.DOWN
-        if not self._check_port_ssh(self.ip, PORT_SSH):
-            return checkerlib.CheckResult.DOWN
-        #else
+        # check if DNS service is working (active and answiring all the requests)
+        if not self._check_dns(self.ip):
+            return checkerlib.CheckResult.FAULTY
+        # check if FTP server is working and anonymous user can access
+        if not self._check_ftp(self.ip):
+            return checkerlib.CheckResult.FAULTY
+        #
         # check if server is Apache 2.4.50
         if not self._check_apache_version():
             return checkerlib.CheckResult.FAULTY
-        # check if dev1 user exists in pasapasa_ssh docker
-        if not self._check_ssh_user('heals'):
+        if not self._check_web(self.ip, URL1, PORT_WEB, WEBSTATE1):
             return checkerlib.CheckResult.FAULTY
+        if not self._check_web(self.ip, URL2, PORT_WEB, WEBSTATE2):
+            return checkerlib.CheckResult.FAULTY
+        if not self._check_websecure(self.ip, URLS1, PORT_WEBS):
+            return checkerlib.CheckResult.FAULTY
+        if not self._check_websecure(self.ip, URLS2, PORT_WEBS):
+            return checkerlib.CheckResult.FAULTY
+        #if not self._check_port_ssh(self.ip, PORT_SSH):
+        #    return checkerlib.CheckResult.FAULTY
+        #else
+        
+        # check if dev1 user exists in pasapasa_ssh docker
+        #if not self._check_ssh_user('heals'):
+        #    return checkerlib.CheckResult.FAULTY
         #file_path_web = '/usr/local/apache2/htdocs/index.html'
         # check if index.hmtl from pasapasa_web has been changed by comparing its hash with the hash of the original file
         #if not self._check_web_integrity(file_path_web):
@@ -122,7 +146,6 @@ class MyChecker(checkerlib.BaseChecker):
     def _add_new_flag(self, ssh_session, flag):
         # Execute the file creation command in the container
         command = f"docker exec catchme_ssh_1 sh -c 'echo {flag} >> /home/heals/flag.txt'"
-        command = f"docker exec catchme_ssh_1 sh -c 'echo {flag} >> /home/seeks/flag.txt'"
         stdin, stdout, stderr = ssh_session.exec_command(command)
 
         # Check if the command executed successfully
@@ -144,13 +167,49 @@ class MyChecker(checkerlib.BaseChecker):
         output = stdout.read().decode().strip()
         return flag == output
 
-    def _check_port_web(self, ip, port):
+
+
+    def _check_dns(self, ip):
         try:
-            conn = http.client.HTTPConnection(ip, port, timeout=5)
-            conn.request("GET", "/")
-            response = conn.getresponse()
-#            return response.status == 200
-            return response.status == 301
+            resolver = dns.resolver.Resolver()
+            resolver.nameservers = [ip]
+            answerwww = resolver.resolve('www.catch.me')
+            answerintranet = resolver.resolve('intranet.catch.me')
+            www = False
+            for ipaddress in answerwww:
+                www = www or (ipaddress.to_text() == ip)
+            intranet = False
+            for ipaddress in answerintranet:
+                intranet = intranet or (ipaddress.to_text() == ip)
+            return www and intranet
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.exception.DNSException) as e:
+            return False
+
+    def _check_ftp(self, ip):
+        try:
+            ftpconn = FTP()
+            ftpconn.connect(ip, 21)
+            ftpconn.login('anonymous','')           
+            ftpconn.quit()
+            return True
+        except (error_perm, error_temp, error_reply) as e:
+            print(f"Exception: {e}")
+            return False
+            
+    
+    def _check_web(self, ip, url, port, state):
+        parsed_url = urlparse(url)
+        host = parsed_url.hostname
+        resolver = dns.resolver.Resolver()
+        resolver.nameservers = [ip]
+        answer = resolver.resolve(host, 'A')
+        ip_address = answer[0].to_text()
+        try:
+            conn = http.client.HTTPConnection(ip_address, port, timeout=5)
+            conn.request("GET", "/", headers={'Host': host})
+            response = conn.getresponse()          
+            #return True
+            return response.status == state
         except (http.client.HTTPException, socket.error) as e:
             print(f"Exception: {e}")
             return False
@@ -158,21 +217,25 @@ class MyChecker(checkerlib.BaseChecker):
             if conn:
                 conn.close()
 
-    def _check_port_webs(self, ip, port):
+    def _check_websecure(self, ip, url, port):
+        parsed_url = urlparse(url)
+        host = parsed_url.hostname
+        resolver = dns.resolver.Resolver()
+        resolver.nameservers = [ip]
+        answer = resolver.resolve(host, 'A')
+        ip_address = answer[0].to_text()
         try:
             context = ssl.create_default_context()
-            context.load_cert_chain(certfile=ca.crt)
-            conn = http.client.HTTPSConnection(ip, port, timeout=5)
-            conn.request("GET", "/")
-            response = conn.getresponse()
-            return response.status == 200
-#            return response.status == 301
-        except (http.client.HTTPException, socket.error, ssl.SSLError) as e:
-            print(f"Exception: {e}")
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            with socket.create_connection((ip_address, port)) as sock:
+                with context.wrap_socket(sock, server_hostname=host) as secure_sock:            
+                    return True
+        except ssl.SSLError as e:
             return False
-        finally:
-            if conn:
-                conn.close()
+        except Exception as e:
+            return False    
+
 
     def _check_port_ssh(self, ip, port):
         try:
