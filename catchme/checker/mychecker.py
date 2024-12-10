@@ -12,11 +12,12 @@ from ftplib import FTP
 from ftplib import error_perm, error_temp, error_reply
 import paramiko
 import hashlib
-#PORT_DNS = 53
+#FTP variables
 PORT_FTP = 21
 FTPUSER = 'seeks'
 FTPPASSWD = '2661DWdb'
 FTPPATH = '/home/seeks/.sshusers'
+#WEB variables
 PORT_WEB = 80
 URL1 = 'http://www.catch.me'
 WEBSTATE1 = 301
@@ -32,6 +33,7 @@ WEBINTRANET = '/usr/local/apache2/htdocs/intranet/index.html'
 WEBHTACCESS = '/usr/local/apache2/htdocs/intranet-old/.htaccess'
 WEBHTPASSWD = '/usr/local/apache2/htdocs/intranet-old/.htpasswd'
 WEBFTPUSERS = '/usr/local/apache2/htdocs/intranet-old/.ht-ftpusers'
+#SSH variables
 PORT_SSH = 23
 SSHUSER = 'heals'
 SSHPASSWD = 'aIPOLLWn'
@@ -149,36 +151,7 @@ class MyChecker(checkerlib.BaseChecker):
     
     
     
-    #@ssh_connect()
-    #Function to check if an user exists
-    #def _check_ssh_user(self, username):
-    #    ssh_session = self.client
-    #    command = f"docker exec catchme_ssh_1 sh -c 'id {username}'"
-    #    stdin, stdout, stderr = ssh_session.exec_command(command)
-    #    if stderr.channel.recv_exit_status() != 0:
-    #        return False
-    #    return True
-      
-    #@ssh_connect()
-    #def _check_web_integrity(self, path):
-    #    ssh_session = self.client
-    #    command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
-    #    stdin, stdout, stderr = ssh_session.exec_command(command)
-    #    if stderr.channel.recv_exit_status() != 0:
-    #        return False
-    #    output = stdout.read().decode().strip()
-    #    return hashlib.md5(output.encode()).hexdigest() == 'a4ed71eb4f7c89ff868088a62fe33036'
     
-    #@ssh_connect()
-    #def _check_ssh_integrity(self, path):
-    #    ssh_session = self.client
-    #    command = f"docker exec catchme_ssh_1 sh -c 'cat {path}'"
-    #    stdin, stdout, stderr = ssh_session.exec_command(command)
-    #    if stderr.channel.recv_exit_status() != 0:
-    #        return False
-    #    output = stdout.read().decode().strip()
-        #print (hashlib.md5(output.encode()).hexdigest())
-    #    return hashlib.md5(output.encode()).hexdigest() == 'e6fd6e8e29210c5678181f33177d5433'
   
     # Private Funcs - Return False if error
     def _add_new_flag(self, ssh_session, flag):
@@ -383,18 +356,6 @@ class MyChecker(checkerlib.BaseChecker):
 
 
 
-
-    #def _check_port_ssh(self, ip, port):
-    #    try:
-    #        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #        sock.settimeout(5)
-    #        result = sock.connect_ex((ip, port))
-    #        return result == 0
-    #    except socket.error as e:
-    #        print(f"Exception: {e}")
-    #        return False
-    #    finally:
-    #        sock.close()
 
     
 if __name__ == '__main__':
