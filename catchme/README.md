@@ -110,12 +110,42 @@ Finally, it sarts the server through sshd daemon.
 If not, service's status becomes FAULTY.
 * Checks done:
   * Stop the container on 10.0.1.101 ('root@debian:~# docker stop catchme_dns_1'): service's status of Team1 becomes FAULTY.
-  * Change the ip parameter by '10.0.1.101' value on mychecker.py script:  service's status of Team2 becomes FAULTY.
+  * Change the ip parameter by '10.0.1.101' value on mychecker.py script: service's status of Team2 becomes FAULTY.
 
 - FTP server is active and working. Working means:
   - anonymous user can login to FTP server
   - seeks user can login to FTP server
 - /home/seeks/.sshusers file on FTP server hasn't been changed using its hash
+If not, service's status becomes FAULTY.
+* Checks done:
+  * Stop the container on 10.0.1.102 ('root@debian:~# docker stop catchme_ftp_1'): service's status of Team2 becomes DOWN.
+  * Change the password of seeks user on the container on 10.0.1.101: service's status of Team1 becomes FAULTY.
+  * Change /home/seeks/.sshusers file content on the container on 10.0.1.101: service's status of Team1 becomes FAULTY.
+
+- SSH server is active and working. Working means:
+  - listens on port 23
+  - heals user can login to SSH server
+* Checks done:
+  * Stop the container on 10.0.1.101 ('root@debian:~# docker stop catchme_ftp_1'): service's status of Team1 becomes FAULTY.
+  * Change the password of heals user on the container on 10.0.1.102: service's status of Team2 becomes FAULTY.
+
+- WEB server is active and working. Working means:
+  - HTTP/HTTPS server is Apache 2.4.50
+  - http://www.catch.me redirects (301)
+  - http://intranet.catch.me asks for a login (401)
+  - https://www.catch.me is available
+  - https://intranet.catch.me is available
+  - HTTP/HTTPS config files (httpd.conf and extra/httpd-vhosts.conf) haven't been changed using their hash
+  - HTTP/HTTPS content files haven't been changed using their hash:
+    - /usr/local/apache2/htdocs/www/index.html
+    - /usr/local/apache2/htdocs/intranet/index.html
+    - /usr/local/apache2/htdocs/intranet-old/.htaccess
+    - /usr/local/apache2/htdocs/intranet-old/.htpasswd
+    - /usr/local/apache2/htdocs/intranet-old/.ht-ftpusers
+* Checks done:
+
+
+
 
 
 - Ports to reach dockers are open (WEB:9797; SSH 8822)
@@ -131,6 +161,18 @@ Checks done:
 - TEAM 4. Change '/usr/local/apache2/htdocs/index.html' file from 'pasapasa_web' docker. It works OK, service's status becomes faulty.
 - TEAM 5. 'ssh service stop'. It works OK, service's status becomes faulty. 
 - TEAM 0. apt update apache2
+
+
+
+
+
+
+
+* Team1 captures the flag (in fact, the last 5 flags) from Team2: Team1 gets 10 points (2 per flag) and Team2 loses 5 points (1 per flag and attacker). The final command has been, from Team1's T-Submission machine (10.0.1.1):
+  * root@debian:~# scp -P 23 heals@10.0.2.101:/home/heals/flag.txt ./flag.flag
+  * Brief explanation: via scp (SSH) the current flag (/home/heals/flag.txt) of Team2 is copied on /root directory as xx.flag (the name is not important but the extension is) so the checker can count it for the scoreboard.
+
+
 # License notes
 Parts from:
 https://github.com/kristianvld/SQL-Injection-Playground

@@ -25,9 +25,13 @@ WEBSTATE2 = 401
 PORT_WEBS = 443
 URLS1 = 'https://www.catch.me'
 URLS2 = 'https://intranet.catch.me'
-WEBCONFPATH1 = '/usr/local/apache2/conf/httpd.conf'
-WEBCONFPATH2 = '/usr/local/apache2/conf/extra/httpd-vhosts.conf'
-WEBPATH = '/usr/local/apache2/htdocs/intranet-old/.ht-ftpusers'
+WEBCONF = '/usr/local/apache2/conf/httpd.conf'
+WEBCONFEXTRA = '/usr/local/apache2/conf/extra/httpd-vhosts.conf'
+WEBWWW = '/usr/local/apache2/htdocs/www/index.html'
+WEBINTRANET = '/usr/local/apache2/htdocs/intranet/index.html'
+WEBHTACCESS = '/usr/local/apache2/htdocs/intranet-old/.htaccess'
+WEBHTPASSWD = '/usr/local/apache2/htdocs/intranet-old/.htpasswd'
+WEBFTPUSERS = '/usr/local/apache2/htdocs/intranet-old/.ht-ftpusers'
 PORT_SSH = 23
 SSHUSER = 'heals'
 SSHPASSWD = 'aIPOLLWn'
@@ -104,21 +108,34 @@ class MyChecker(checkerlib.BaseChecker):
         if not self._check_websecure(self.ip, URLS2, PORT_WEBS):
             return checkerlib.CheckResult.FAULTY
           # check if HTTP/HTTPS config files haven't been changed using their hash
-        if not self._check_web_confhash(WEBCONFPATH1):
+        if not self._check_webconf(WEBCONF):
             return checkerlib.CheckResult.FAULTY
-        if not self._check_web_extraconfhash(WEBCONFPATH2):
+        if not self._check_webconfextra(WEBCONFEXTRA):
             return checkerlib.CheckResult.FAULTY
-          # check if .ht-ftpusers file on /usr/local/apache2/htdocs/intranet-old/ hasn't been changed using its hash
-        if not self._check_web_filehash(WEBPATH):
+          # check if /usr/local/apache2/htdocs/www/index.html file hasn't been changed using its hash
+        if not self._check_webwww(WEBWWW):
             return checkerlib.CheckResult.FAULTY
-        
+          # check if /usr/local/apache2/htdocs/intranet/index.html file hasn't been changed using its hash
+        if not self._check_webintranet(WEBINTRANET):
+            return checkerlib.CheckResult.FAULTY
+          # check if /usr/local/apache2/htdocs/intranet-old/.htaccess file hasn't been changed using its hash
+        if not self._check_webhtaccess(WEBHTACCESS):
+            return checkerlib.CheckResult.FAULTY
+          # check if /usr/local/apache2/htdocs/intranet-old/.htpasswd file hasn't been changed using its hash
+        if not self._check_webhtpasswd(WEBHTPASSWD):
+            return checkerlib.CheckResult.FAULTY
+          # check if /usr/local/apache2/htdocs/intranet-old/.ht-ftpusers file hasn't been changed using its hash
+        if not self._check_webftpusers(WEBFTPUSERS):
+            return checkerlib.CheckResult.FAULTY
+
+
         # if all the services are OK          
         return checkerlib.CheckResult.OK
     
-    
+
     def check_flag(self, tick):
         if not self.check_service():
-            return checkerlib.CheckResult.DOWN
+            return checkerlib.CheckResult.FAULTY
         flag = checkerlib.get_flag(tick)
         #creds = checkerlib.load_state("flag_" + str(tick))
         # if not creds:
@@ -295,17 +312,7 @@ class MyChecker(checkerlib.BaseChecker):
             return False    
 
     @ssh_connect()
-    def _check_web_filehash(self, path):
-        ssh_session = self.client
-        command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
-        stdin, stdout, stderr = ssh_session.exec_command(command)
-        if stderr.channel.recv_exit_status() != 0:
-            return False
-        output = stdout.read().decode().strip()
-        return hashlib.md5(output.encode()).hexdigest() == '8d28dab82d38bf9b95e82b7c58de6d31'
-
-    @ssh_connect()
-    def _check_web_confhash(self, path):
+    def _check_webconf(self, path):
         ssh_session = self.client
         command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
         stdin, stdout, stderr = ssh_session.exec_command(command)
@@ -315,7 +322,7 @@ class MyChecker(checkerlib.BaseChecker):
         return hashlib.md5(output.encode()).hexdigest() == '8f2c783e646ebbd9d66a2388b254620f'
     
     @ssh_connect()
-    def _check_web_extraconfhash(self, path):
+    def _check_webconfextra(self, path):
         ssh_session = self.client
         command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
         stdin, stdout, stderr = ssh_session.exec_command(command)
@@ -323,7 +330,60 @@ class MyChecker(checkerlib.BaseChecker):
             return False
         output = stdout.read().decode().strip()
         return hashlib.md5(output.encode()).hexdigest() == '2b41a2fbe194b4ddf857274ecfc46025'
-    
+
+    @ssh_connect()
+    def _check_webwww(self, path):
+        ssh_session = self.client
+        command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
+        stdin, stdout, stderr = ssh_session.exec_command(command)
+        if stderr.channel.recv_exit_status() != 0:
+            return False
+        output = stdout.read().decode().strip()
+        return hashlib.md5(output.encode()).hexdigest() == 'c74fcb9904a61e23fab4150567c9bcad'
+
+    @ssh_connect()
+    def _check_webintranet(self, path):
+        ssh_session = self.client
+        command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
+        stdin, stdout, stderr = ssh_session.exec_command(command)
+        if stderr.channel.recv_exit_status() != 0:
+            return False
+        output = stdout.read().decode().strip()
+        return hashlib.md5(output.encode()).hexdigest() == '17fb24bc09456a804b24618d8b7e951b'
+
+    @ssh_connect()
+    def _check_webhtaccess(self, path):
+        ssh_session = self.client
+        command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
+        stdin, stdout, stderr = ssh_session.exec_command(command)
+        if stderr.channel.recv_exit_status() != 0:
+            return False
+        output = stdout.read().decode().strip()
+        return hashlib.md5(output.encode()).hexdigest() == 'aeea405c63889b842b91677be7f4799f'
+
+    @ssh_connect()
+    def _check_webhtpasswd(self, path):
+        ssh_session = self.client
+        command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
+        stdin, stdout, stderr = ssh_session.exec_command(command)
+        if stderr.channel.recv_exit_status() != 0:
+            return False
+        output = stdout.read().decode().strip()
+        return hashlib.md5(output.encode()).hexdigest() == 'd262026f177c1b4d0e73105b1037da11'
+
+    @ssh_connect()
+    def _check_webftpusers(self, path):
+        ssh_session = self.client
+        command = f"docker exec catchme_web_1 sh -c 'cat {path}'"
+        stdin, stdout, stderr = ssh_session.exec_command(command)
+        if stderr.channel.recv_exit_status() != 0:
+            return False
+        output = stdout.read().decode().strip()
+        return hashlib.md5(output.encode()).hexdigest() == '8d28dab82d38bf9b95e82b7c58de6d31'
+
+
+
+
     #def _check_port_ssh(self, ip, port):
     #    try:
     #        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
