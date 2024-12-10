@@ -8,32 +8,6 @@
   3.c. http://intranet.catch.me HTTP website requests DO NOT to https://intranet.catch.me. The HTTP website is located on /usr/local/apache2/htdocs/intranet-old/ directory. When trying to access, a login prompt appears for accessing using user and password. This access does not work, but the file that is normally used in these situations (.htaccess) is accesible due to a configuration error (.ht* files aren't accessible by default on Apache2 servers). .htaccess file points to another file (.htpasswd) in which a list of 20 users/passwords appears. Besides, a commentary is written on the last line, recommending to check another file (.ht-ftpusers) in which another list of 21 users/passwords appears.
 4. An FTP server (vsftpd, listening on port 21 and using port 20 for data transfer), with anonymous access enabled (user anonymous with no password). Anonymous user falls on /srv/ftp directory and it is jailed in it (so, it cannot see the whole system file). A hidden file (.userlist) is located on /srv/ftp directory in which a list of 20 users/passwords appears. Four local users (avoid, gleds, seeks and spuds) can also access to the FTP server. They fall on their respective home directory but they are not jailed there. Despite they can move through the whole system and they can list the four directories under /home, as they have 700 permissions, only the owners can go inside and list/see/download the content. A hidden file (.sshusers) is located on /home/seeks directory in which a list of 20 users/passwords appears.
 
-# The attack
-Information provided to the attacker:
-- There is a DNS server on 10.0.x.101, being x the attacked team number
-- There is a domain name: www.catch.me
-
-The attacker must set its default DNS server on attacked machine (10.0.x.101, being x the attacked team number), so it can get the same IP address as an answer for both www.catch.me and intranet.catch.me domain names.
-
-The attacker has access to https://www.catch.me web page (with this URL directly or redirected from http://www.catch.me or redirected from http://10.0.x.101). They can surf between https://www.catch.me and https://intranet.catch.me, using the links on both websites, but they won't find anything interesting.
-NOTE: As both HTTPS websites use self-signed certificates, the certificates must be trusted and an exception added in order to access the websites.
-
-In order to access the website we are interested in (http://intranet.catch.me), an HTTP connection must be forced to intranet.catch.me (notice that HTTP connections to the IP address will lead you to http://www.catch.me, and consequently, to http://www.catch.me).
-
-Once the promt for user/password login appears, attacker should try to access the file that is normally forbidden (.htaccess), which will be accessible. Reading this file, they will open .htpasswd, skipping the list of 20 users/passwords (that will lead to a dead end) and reading the commentary on the last line of this file, they will open .ht-ftpusers file, which contains another list of 21 users/passwords (including anonymous user).
-
-The list of users/passwords in .ht-ftpusers file should be checked on the FTP server. The result will be:
-- anonymous user can log in and can see a hidden file (.userlist), which contains a list of 20 users/passwords that leads to a dead end.
-- 16 users and passwords are not valid in any server.
-- 3 users (avoid, gleds and spuds) can access the FTP server, they can see their respective home directory but they cannot go ahead. The only thing is that they can see the list of directories in /home so they can guess which users have access and which ones haven't access to the FTP server.
-- Finally, seeks user can also access the FTP server, and will find a hidden file (.sshusers) on its home directory (/home/seeks), which contains a list of 20 users/passwords.
-
-The list of users/passwords in .sshusers file should be checked on the SSH server (remember that the port of this SSH server is 23, because port 22 is occupied for infrastructure purposes). The result will be:
-- 16 users and passwords are not valid.
-- 3 users (furcy, kulan and swans) can access the SSH server, they can see their respective home directory but they cannot go ahead. The only thing is that they can see the list of directories in /home so they can guess which users have access and which ones haven't access to the SSH server.
-- Finally, heals user can also access the SSH server, and will find the flag in its home directory (/home/heals/flag.txt).
-
-Attacker has to let the flag in his T-Submission machine. 
 
 # Service implementation:
 dns docker is configured to install bind9 and to take a copy of the following files from the host machine and letting them in the specified location:
@@ -75,34 +49,6 @@ Finally, it sarts the server through sshd daemon.
     Flag will be stored in 'catchme_ssh_1' docker's '/home/heals/flags.txt' file. 
 
 
-# #########################################
-
- 'dev1' user's password will never be changed. Moreover, if a team changes it, it will be losing SLa points. 
- 
-
-# About exploting:
-- The attacker has to inspect the index.html document; the credentialas are stored there as plain text. With those credentials, the attacker can log into pasapasa_ssh docker and take the flags from /tmp/flags.txt.
-- The defender should change 'dev1' user's password. 
-  
-  Attack performed by Team1 against Team 4. 
-  Inspect web page in 10.0.0.104
-      We find 'dev1/w3ar3h4ck3r2' credentials.
-  ssh -p 8822 dev1@10.0.0.104
-        Enter 'w3ar3h4ck3r2' as password
-  cat /tmp/flags.txt
-     Copy last flags
-     Exit
-  'ssh -i /home/urko/Deskargak/keyak/team2-sshkey root@10.0.1.1'
-  nano /root/xxx.flag
-    Paste copied flags. 
-
-  Defense performed by Team4
-     'ssh root@10.0.0.104'
-     docker exec -it pasapasa_ssh_1 /bin/bash
-     passwd dev1
-     
-# ###################################################     
-
 # Checker checks:
 - DNS server is active and working. Working means:
   - Resolves 'www.catch.me' domain name into 10.0.x.101 IP address, being x the attacked team number.
@@ -118,7 +64,7 @@ If not, service's status becomes FAULTY.
 - /home/seeks/.sshusers file on FTP server hasn't been changed using its hash
 If not, service's status becomes FAULTY.
 * Checks done:
-  * Stop the container on 10.0.1.102 ('root@debian:~# docker stop catchme_ftp_1'): service's status of Team2 becomes DOWN.
+  * Stop the container on 10.0.1.102 ('root@debian:~# docker stop catchme_ftp_1'): service's status of Team2 becomes DOWN (this is very strange, it should be FAULTY, becauyse I haven't define any situation in which a service status becomes DOWN).
   * Change the password of seeks user on the container on 10.0.1.101: service's status of Team1 becomes FAULTY.
   * Change /home/seeks/.sshusers file content on the container on 10.0.1.101: service's status of Team1 becomes FAULTY.
 
@@ -128,7 +74,8 @@ If not, service's status becomes FAULTY.
 * Checks done:
   * Stop the container on 10.0.1.101 ('root@debian:~# docker stop catchme_ftp_1'): service's status of Team1 becomes FAULTY.
   * Change the password of heals user on the container on 10.0.1.102: service's status of Team2 becomes FAULTY.
-
+  * Delete the flag file (/home/heals/flag.txt) on SSH container on 10.0.1.101: service's status of Team1 becomes RECOVERING during 5/6 Ticks (the time needed to refill the flag file with 5 new flags) and Team1 loses about 6 points. Once there are 5 flags in the file, status becomes UP again.
+  
 - WEB server is active and working. Working means:
   - HTTP/HTTPS server is Apache 2.4.50
   - http://www.catch.me redirects (301)
@@ -143,34 +90,62 @@ If not, service's status becomes FAULTY.
     - /usr/local/apache2/htdocs/intranet-old/.htpasswd
     - /usr/local/apache2/htdocs/intranet-old/.ht-ftpusers
 * Checks done:
+  * Stop the container on 10.0.1.102 ('root@debian:~# docker stop catchme_web1'): service's status of Team2 becomes FAULTY.
+  * Modify /usr/local/apache2/conf/httpd.conf config file on container on 10.0.1.101 docker: service's status of Team1 becomes FAULTY.
+  * Modify /usr/local/apache2/htdocs/intranet-old/.htaccess file on container on 10.0.1.101 docker: service's status of Team1 becomes FAULTY.
+
+Every time a service falls in FAULTY status, the team will be losing SLa points. 
+ 
+
+# The attack step by step
+Information provided to the attacker:
+- There is a DNS server on 10.0.x.101, being x the attacked team number
+- There is a domain name: www.catch.me
+
+The attacker must set its default DNS server on attacked machine (10.0.x.101, being x the attacked team number), so it can get the same IP address as an answer for both www.catch.me and intranet.catch.me domain names.
+
+The attacker has access to https://www.catch.me web page (with this URL directly or redirected from http://www.catch.me or redirected from http://10.0.x.101). They can surf between https://www.catch.me and https://intranet.catch.me, using the links on both websites, but they won't find anything interesting.
+NOTE: As both HTTPS websites use self-signed certificates, the certificates must be trusted and an exception added in order to access the websites.
+
+In order to access the website we are interested in (http://intranet.catch.me), an HTTP connection must be forced to intranet.catch.me (notice that HTTP connections to the IP address will lead you to http://www.catch.me, and consequently, to http://www.catch.me).
+
+Once the promt for user/password login appears, attacker should try to access the file that is normally forbidden (.htaccess), which will be accessible. Reading this file, they will open .htpasswd, skipping the list of 20 users/passwords (that will lead to a dead end) and reading the commentary on the last line of this file, they will open .ht-ftpusers file, which contains another list of 21 users/passwords (including anonymous user).
+
+The list of users/passwords in .ht-ftpusers file should be checked on the FTP server. The result will be:
+- anonymous user can log in and can see a hidden file (.userlist), which contains a list of 20 users/passwords that leads to a dead end.
+- 16 users and passwords are not valid in any server.
+- 3 users (avoid, gleds and spuds) can access the FTP server, they can see their respective home directory but they cannot go ahead. The only thing is that they can see the list of directories in /home so they can guess which users have access and which ones haven't access to the FTP server.
+- Finally, seeks user ('2661DWdb' password) can also access the FTP server, and will find a hidden file (.sshusers) on its home directory (/home/seeks), which contains a list of 20 users/passwords.
+
+The list of users/passwords in .sshusers file should be checked on the SSH server (remember that the port of this SSH server is 23, because port 22 is occupied for infrastructure purposes). The result will be:
+- 16 users and passwords are not valid.
+- 3 users (furcy, kulan and swans) can access the SSH server, they can see their respective home directory but they cannot go ahead. The only thing is that they can see the list of directories in /home so they can guess which users have access and which ones haven't access to the SSH server.
+- Finally, heals user ('aIPOLLWn' password) can also access the SSH server, and will find the flag in its home directory (/home/heals/flag.txt).
+
+Attacker has to let the flag in his T-Submission machine, in a file with .flag extension located at /root directory (as, for example, /root/flag.flag). 
 
 
-
-
-
-- Ports to reach dockers are open (WEB:9797; SSH 8822)
-- User 'dev1' exists in pasapasa_ssh docker. 
-- /etc/sshd_config file from pasapasa_ssh docker has not been changed. 
-- /usr/local/apache2/htdocs/index.html file's content from pasapasa_web docker has not been changed. 
-
-Checks done: 
-- TEAM 0. Stop the container: 'root@team0-services:~# docker stop pasapasa_web_1' It works OK, service's status becomes DOWN. 
-- TEAM 1. Stop the container: 'root@team0-services:~# docker stop pasapasa_ssh_1' It works OK, service's status becomes DOWN.
-- TEAM 2. 'userdel dev1'. It works OK, service's status becomes faulty. 
-- TEAM 3. Change '/etc/sshd_config' file from 'pasapasa_ssh' docker. It works OK, service's status becomes faulty.
-- TEAM 4. Change '/usr/local/apache2/htdocs/index.html' file from 'pasapasa_web' docker. It works OK, service's status becomes faulty.
-- TEAM 5. 'ssh service stop'. It works OK, service's status becomes faulty. 
-- TEAM 0. apt update apache2
-
-
-
-
-
-
-
+# The attack - result
 * Team1 captures the flag (in fact, the last 5 flags) from Team2: Team1 gets 10 points (2 per flag) and Team2 loses 5 points (1 per flag and attacker). The final command has been, from Team1's T-Submission machine (10.0.1.1):
   * root@debian:~# scp -P 23 heals@10.0.2.101:/home/heals/flag.txt ./flag.flag
-  * Brief explanation: via scp (SSH) the current flag (/home/heals/flag.txt) of Team2 is copied on /root directory as xx.flag (the name is not important but the extension is) so the checker can count it for the scoreboard.
+  * Brief explanation: via scp (SSH), using heals:aIPOLLWn credentials, the current flag (/home/heals/flag.txt) of Team2 is copied on /root directory as xx.flag (the name is not important but the extension is) so the checker can count it for the scoreboard.
+
+
+# The attack using an exploit:
+We assume that:
+- The attacker has accessed all the attacked machines using SSH, so the fingerprint of all 10.0.x.101 machines is already stored on T-Submission machine. If not, attacker must access manually each teams service machine for the first time before using the exploit script.
+- "sshpass" package must be installed first on T-Submission machine (apt install sshpass).
+
+The exploit is very simple, consists on a shell script that is a loop, from 1 to the last team's number, and executes the following command for all the attacked teams:
+  sshpass 'aIPOLLWn' scp -P 23 heals@10.0.$i.101:/home/heals/flag.txt /root/flag$i.flag
+So, for each team, copies their respective flag in the correct directory and with a correct name, one name per attacked team, so a flag does not overwrite the previous one.
+
+In order to make the attack persistent, a periodical command must be placed in crontab (crontab -e), to be executed once for each Tick. For example, if the Tick value is 1 minute and the exploit is located at /root/exploit.sh (remember that must have execution permissions 'chmod +x'), the crontab line should be the following:
+* * * * * /root/exploit.sh
+
+The attacker will earn 2 points per flag (in each Tick) and defender will lose 1 point per flag (in each Tick).
+
+     
 
 
 # License notes
